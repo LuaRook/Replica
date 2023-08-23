@@ -73,6 +73,12 @@ function ClientReplica.new(params)
 	return self
 end
 
+-- Listens for children being added to the replica.
+--@param listener PathListener The function to call when a child is added to the replica.
+function ClientReplica:ListenToChildAdded(listener: (child: Replica) -> ()): RBXScriptConnection
+	return self:_createListener("ChildAdded", "Root", listener)
+end
+
 -- Listens to changes from `SetValue`.
 --@param path string The path to listen to changes to.
 --@param listener PathListener The function to call when the path is updated.
@@ -132,6 +138,15 @@ end
 
 function ClientReplica:_fireListener(listenerType: string, path: string, ...)
 	ReplicaUtil.fireListener(self.ReplicaId, listenerType, path, ...)
+end
+
+--[ Listener Handlers ]--
+
+function ClientReplica:_onChildAdded(_: string, serverReplica: Replica)
+	local clientReplica: Replica = Replicas[serverReplica.ReplicaId]
+	if clientReplica then
+		self:_fireListener("ChildAdded", "Root", clientReplica)
+	end
 end
 
 function ClientReplica:_onChange(path: string, value: any)

@@ -80,7 +80,8 @@ function ServerReplica.new(params: ReplicaParams)
 
 	-- Handle replica replication
 	local replication: { Player } | string = params.Replication
-	if not replication or replication == "All" then
+	local replicateAll: boolean = not replication or replication == "All"
+	if replicateAll then
 		-- Provide replica parameters to new players
 		self._trove:Connect(Players.PlayerAdded, function(player: Player)
 			CreationRemote:FireClient(player, params)
@@ -98,12 +99,20 @@ function ServerReplica.new(params: ReplicaParams)
 	self._trove:Add(Timer.Simple(UPDATE_RATE, function()
 		-- Only fire remote whenever there are children in the queue
 		if #self.ChildQueue > 0 then
-			ChildRemote:FireClient(self.ReplicaId, self.ChildQueue)
+			if replicateAll then
+				ChildRemote:FireAllClients(self.ReplicaId, self.ChildQueue)
+			else
+				fireForPlayers(replication, self.ReplicaId, self.ChildQueue)
+			end
 
 			-- Insert children in queue into server queue
 			for _, child: string in self.ChildQueue do
+				self:_fireListener("ChildAdded", "Root", self)
 				table.insert(self.Children, child)
 			end
+
+			-- Clear queue
+			table.clear(self.ChildQueue)
 		end
 	end))
 
@@ -245,6 +254,12 @@ function ServerReplica:ArrayRemove(path: string, index: number): any
 	return removedValue
 end
 
+-- Listens for children being added to the replica.
+--@param listener PathListener The function to call when a child is added to the replica.
+function ServerReplica:ListenToChildAdded(listener: (child: Replica) -> ()): RBXScriptConnection
+	return self:_createListener("ChildAdded", "Root", listener)
+end
+
 -- Listens to changes from `SetValue`.
 --@param path string The path to listen to changes to.
 --@param listener PathListener The function to call when the path is updated.
@@ -331,6 +346,7 @@ function ServerReplica:DestroyFor(...: Player)
 		end
 
 		-- Fire remote for player
+		self:Destroy()
 		DestroyRemote:FireClient(player, {
 			self.ReplicaId
 		})

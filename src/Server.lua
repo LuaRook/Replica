@@ -279,6 +279,22 @@ function ServerReplica:Destroy()
 	self._trove:Destroy()
 end
 
+--- Destroys the replica for the specified player(s)
+function ServerReplica:DestroyFor(...: Player)
+	-- Loop through provided players
+	for _, player: Player in { ... } do
+		-- Check if provided player is a player
+		if typeof(player) ~= "Instance" or not player:IsA("Player") then
+			continue
+		end
+
+		-- Fire remote for player
+		DestroyRemote:FireClient(player, {
+			self.ReplicaId
+		})
+	end
+end
+
 --[ Initialization ]--
 
 -- Setup replica destruction queue

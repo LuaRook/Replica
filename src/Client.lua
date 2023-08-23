@@ -11,6 +11,10 @@ local Net = require(script.Parent.Parent.Net)
 local ReplicaUtil = require(script.Parent.ReplicaUtil)
 local SharedTypes = require(script.Parent.SharedTypes)
 
+--[ Roblox Services ]--
+
+local HttpService = game:GetService("HttpService")
+
 --[ Types ]--
 
 export type Replica = SharedTypes.Replica
@@ -79,6 +83,13 @@ function ClientReplica.new(params)
 	return self
 end
 
+-- Returns JSON-encoded class
+--@return string
+function ClientReplica:Identify()
+	return HttpService:JSONEncode(self)
+end
+
+
 -- Fires passed arguments to server
 function ClientReplica:FireServer(...: any)
 	-- Get remote
@@ -125,6 +136,17 @@ end
 --@param listener PathListener The function to call when a new key is added.
 function ClientReplica:ListenToNewKey(path: string, listener: PathListener): RBXScriptConnection
 	return self:_createListener("NewKey", path, listener)
+end
+
+-- Listens to keys changed at the specified path.
+--@param path string The path to listen to changes in.
+--@param listener PathListener The function to call when a key is changed.
+function ClientReplica:ListenToKeyChanged(path: string, listener: PathListener)
+	return self:ListenToRaw(function(listenerType: string, changedPath: { string }, newValue: any, oldValue: any)
+		if listenerType == "Change" and changedPath:sub(1, #path) == path then
+			task.spawn(listener, newValue, oldValue)
+		end
+	end)
 end
 
 -- Listens to changes from `ArrayInsert`.

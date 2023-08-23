@@ -129,6 +129,9 @@ function ServerReplica:SetParent(replica: Replica)
 			table.remove(replica.Children, index)
 		end
 	end)
+
+	-- Destroy on parent destroyed
+	replica:AddCleanupTask(self)
 end
 
 -- Sets value from path.

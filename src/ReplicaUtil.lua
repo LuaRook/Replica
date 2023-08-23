@@ -35,6 +35,11 @@ end
 --@param listenerType string The type of listener being updated.
 --@param path string The path being updated.
 function ReplicaUtil.fireListener(replicaId: string, listenerType: string, path: string, ...)
+	-- Fire raw signal
+	if listenerType ~= "Raw" then
+		ReplicaUtil.fireListener(replicaId, "Raw", "Root", listenerType, stringToArray(path), ...)
+	end
+
 	local replicaSignals = Listeners[replicaId]
 	if not replicaSignals then
 		return
@@ -150,8 +155,7 @@ function ReplicaUtil.getParent(path: string, data: { any }): ({ any }?, string?)
 
 	-- Add guard against one-deep changes
 	if #path <= 1 then
-		path = nil
-		return data
+		return data, path[1]
 	end
 
 	-- Get final entry and remove it from table

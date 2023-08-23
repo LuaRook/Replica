@@ -14,6 +14,7 @@ local SharedTypes = require(script.Parent.SharedTypes)
 --[ Types ]--
 
 export type Replica = SharedTypes.Replica
+type ReplicaParams = SharedTypes.ReplicaParams
 type ReplicaListener = SharedTypes.ReplicaListener
 type PathListener = SharedTypes.PathListener
 
@@ -57,6 +58,7 @@ end
 function ClientReplica.new(params)
 	local self = setmetatable({}, ClientReplica)
 	self._trove = Trove.new()
+	self._params = params
 	self.ClassName = params.ClassName
 	self.Children = {}
 	self.ReplicaId = params.ReplicaId
@@ -77,10 +79,38 @@ function ClientReplica.new(params)
 	return self
 end
 
+-- Fires passed arguments to server
+function ClientReplica:FireServer(...: any)
+	-- Get remote
+	local remote: RemoteEvent = Net:RemoteEvent("ReplicaMockRemote")
+
+	-- Fires remote if it exists
+	if remote then
+		remote:FireServer(self.ReplicaId, ...)
+	end
+end
+
+-- Functions similarly to ``OnClientEvent``
+--@param listener function
+function ClientReplica:ConnectOnClientEvent(listener: (params: ReplicaParams, any) -> ())
+	return self._trove:Add(Net:Connect("ReplicaMockRemote", function(replicaId: string, ...: any)
+		-- Check if replica ID is the same
+		if replicaId == self.ReplicaId then
+			task.spawn(listener, self._params, ...)
+		end
+	end))
+end
+
 -- Listens for children being added to the replica.
 --@param listener PathListener The function to call when a child is added to the replica.
 function ClientReplica:ListenToChildAdded(listener: (child: Replica) -> ()): RBXScriptConnection
 	return self:_createListener("ChildAdded", "Root", listener)
+end
+
+-- Listens to all changes
+--@param listener function
+function ClientReplica:ListenToRaw(listener: (listenerType: string, path: { string }, any) -> ()): RBXScriptConnection
+	return self:_createListener("Raw", "Root", listener)
 end
 
 -- Listens to changes from `SetValue`.

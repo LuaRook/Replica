@@ -121,6 +121,12 @@ function ServerReplica.new(params: ReplicaParams)
 	return self
 end
 
+-- Returns JSON-encoded class
+--@return string
+function ServerReplica:Identify()
+	return HttpService:JSONEncode(self)
+end
+
 -- Sets parent of replica.
 --@param replica Replica
 function ServerReplica:SetParent(replica: Replica)
@@ -153,7 +159,7 @@ function ServerReplica:SetValue(path: string, value: any)
 	local parentPointer, lastKey = ReplicaUtil.getParent(path, self.Data)
 	local stringKey: string = string.gsub(path, `.{lastKey}`, "")
 	local oldValue: any = parentPointer[lastKey]
-	print(parentPointer, lastKey)
+
 	-- Update data
 	if parentPointer and lastKey then
 		-- Fire new key listeners
@@ -162,7 +168,6 @@ function ServerReplica:SetValue(path: string, value: any)
 		end
 
 		parentPointer[lastKey] = value
-		print("Calling")
 		self:_fireListener("Change", path, value, oldValue)
 	end
 
@@ -311,6 +316,17 @@ function ServerReplica:ListenToNewKey(path: string, listener: PathListener): RBX
 	return self:_createListener("NewKey", path, listener)
 end
 
+-- Listens to keys changed at the specified path.
+--@param path string The path to listen to changes in.
+--@param listener PathListener The function to call when a key is changed.
+function ServerReplica:ListenToKeyChanged(path: string, listener: PathListener)
+	return self:ListenToRaw(function(listenerType: string, changedPath: { string }, newValue: any, oldValue: any)
+		if listenerType == "Change" and changedPath:sub(1, #path) == path then
+			task.spawn(listener, newValue, oldValue)
+		end
+	end)
+end
+
 -- Listens to changes from `ArrayInsert`.
 --@param path string The path to listen to changes to.
 --@param listener PathListener The function to call when the path is updated.
@@ -356,7 +372,6 @@ end
 
 function ServerReplica:_fireListener(listenerType: string, path: string, ...)
 	-- Handle serverside listeners
-	print("Fired")
 	ReplicaUtil.fireListener(self.ReplicaId, listenerType, path, ...)
 
 	-- Replicate to client

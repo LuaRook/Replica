@@ -30,6 +30,7 @@ local UPDATE_RATE: number = 0.25
 --[ Object References ]--
 
 local CreationRemote = Net:RemoteEvent("ReplicaCreated")
+local ChildRemote = Net:RemoteEvent("ReplicaChild")
 local DestroyRemote = Net:RemoteEvent("ReplicaDestroyed")
 local ListenerRemote = Net:RemoteEvent("ReplicaListeners")
 
@@ -54,6 +55,9 @@ function ServerReplica.new(params: ReplicaParams)
 	local self = setmetatable({}, ServerReplica)
 	self._trove = Trove.new()
 	self._queue = {}
+	self._childQueue = {}
+
+	self.Children = {}
 
 	-- Populate class with replica data from parameters
 	if params and typeof(params) == "table" then
@@ -78,9 +82,10 @@ function ServerReplica.new(params: ReplicaParams)
 	local replication: { Player } | string = params.Replication
 	if not replication or replication == "All" then
 		-- Provide replica parameters to new players
-		self._trove:Add(Players.PlayerAdded:Connect(function(player: Player)
+		self._trove:Connect(Players.PlayerAdded, function(player: Player)
 			CreationRemote:FireClient(player, params)
-		end))
+			ChildRemote:FireClient(player, self.ReplicaId, self.Children)
+		end)
 
 		-- Fire replica creation remote for all players
 		CreationRemote:FireAllClients(params)
@@ -88,6 +93,11 @@ function ServerReplica.new(params: ReplicaParams)
 		-- Replicate replica to provided players
 		fireForPlayers(replication, params)
 	end
+
+	-- Provide client with children
+	self._trove:Add(Timer.Simple(UPDATE_RATE, function()
+		ChildRemote:FireClient(self.ReplicaId, self._childQueue)
+	end))
 
 	return self
 end

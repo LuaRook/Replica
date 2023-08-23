@@ -30,6 +30,7 @@ local UPDATE_RATE: number = 0.25
 --[ Object References ]--
 
 local CreationRemote = Net:RemoteEvent("ReplicaCreated")
+local ChildRemote = Net:RemoteEvent("ReplicaChildren")
 local DestroyRemote = Net:RemoteEvent("ReplicaDestroyed")
 local ListenerRemote = Net:RemoteEvent("ReplicaListeners")
 
@@ -55,6 +56,9 @@ function ServerReplica.new(params: ReplicaParams)
 	self._trove = Trove.new()
 	self._queue = {}
 
+	self.ChildQueue = {}
+	self.Children = {}
+
 	-- Populate class with replica data from parameters
 	if params and typeof(params) == "table" then
 		-- Setup replica Id. This is monkeypatching, but this is also the
@@ -76,11 +80,13 @@ function ServerReplica.new(params: ReplicaParams)
 
 	-- Handle replica replication
 	local replication: { Player } | string = params.Replication
-	if not replication or replication == "All" then
+	local replicateAll: boolean = not replication or replication == "All"
+	if replicateAll then
 		-- Provide replica parameters to new players
-		self._trove:Add(Players.PlayerAdded:Connect(function(player: Player)
+		self._trove:Connect(Players.PlayerAdded, function(player: Player)
 			CreationRemote:FireClient(player, params)
-		end))
+			ChildRemote:FireClient(player, self.ReplicaId, self.Children)
+		end)
 
 		-- Fire replica creation remote for all players
 		CreationRemote:FireAllClients(params)
@@ -89,7 +95,52 @@ function ServerReplica.new(params: ReplicaParams)
 		fireForPlayers(replication, params)
 	end
 
+	-- Provide client with children
+	self._trove:Add(Timer.Simple(UPDATE_RATE, function()
+		-- Only fire remote whenever there are children in the queue
+		if #self.ChildQueue > 0 then
+			if replicateAll then
+				ChildRemote:FireAllClients(self.ReplicaId, self.ChildQueue)
+			else
+				fireForPlayers(replication, self.ReplicaId, self.ChildQueue)
+			end
+
+			-- Insert children in queue into server queue
+			for _, child: string in self.ChildQueue do
+				self:_fireListener("ChildAdded", "Root", self)
+				table.insert(self.Children, child)
+			end
+
+			-- Clear queue
+			table.clear(self.ChildQueue)
+		end
+	end))
+
 	return self
+end
+
+-- Sets parent of replica.
+--@param replica Replica
+function ServerReplica:SetParent(replica: Replica)
+	-- Prevent `nil` cases
+	if not replica then
+		return
+	end
+
+	-- Insert replica into child queue
+	local replicaId: string = self.ReplicaId
+	table.insert(replica.ChildQueue, replicaId)
+
+	-- Remove replica from parent children
+	self._trove:Add(function()
+		local index: number? = table.find(replica.Children, replicaId)
+		if index then
+			table.remove(replica.Children, index)
+		end
+	end)
+
+	-- Destroy on parent destroyed
+	replica:AddCleanupTask(self)
 end
 
 -- Sets value from path.
@@ -203,6 +254,12 @@ function ServerReplica:ArrayRemove(path: string, index: number): any
 	return removedValue
 end
 
+-- Listens for children being added to the replica.
+--@param listener PathListener The function to call when a child is added to the replica.
+function ServerReplica:ListenToChildAdded(listener: (child: Replica) -> ()): RBXScriptConnection
+	return self:_createListener("ChildAdded", "Root", listener)
+end
+
 -- Listens to changes from `SetValue`.
 --@param path string The path to listen to changes to.
 --@param listener PathListener The function to call when the path is updated.
@@ -289,6 +346,7 @@ function ServerReplica:DestroyFor(...: Player)
 		end
 
 		-- Fire remote for player
+		self:Destroy()
 		DestroyRemote:FireClient(player, {
 			self.ReplicaId
 		})

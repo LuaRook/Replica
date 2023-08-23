@@ -11,6 +11,7 @@ export type ReplicaParams = {
 export type Path = { string }
 export type Replica = {
 	ClassName: string,
+	Children: { Replica },
 	Data: { any },
 	Tags: { any },
 	Replication: { any },

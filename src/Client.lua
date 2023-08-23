@@ -54,6 +54,7 @@ function ClientReplica.new(params)
 	local self = setmetatable({}, ClientReplica)
 	self._trove = Trove.new()
 	self.ClassName = params.ClassName
+	self.Children = {}
 	self.ReplicaId = params.ReplicaId
 	self.Data = params.Data
 	self.Tags = params.Tags
@@ -205,6 +206,35 @@ do
 	Net:Connect("ReplicaCreated", function(params)
 		-- Create and cache replica
 		Replicas[params.ReplicaId] = ClientReplica.new(params)
+	end)
+
+	-- Connect to child added
+	Net:Connect("ReplicaChildren", function(replicaId: string, children: { Replica })
+		-- Get parent replica
+		local parentReplica: Replica = Replicas[replicaId]
+		if not parentReplica then
+			return
+		end
+
+		-- Set parent variable for provided replicas
+		for _, childId: string in children do
+			local childReplica: Replica = Replicas[childId]
+			if not childReplica then
+				continue
+			end
+
+			-- Cache replica in parent
+			table.insert(parentReplica.Children, childReplica)
+			childReplica:AddCleanupTask(function()
+				local index: number = table.find(parentReplica.Children, childReplica)
+				if index then
+					table.remove(parentReplica.Children, index)
+				end
+			end)
+
+			-- Add child to parent replica trove
+			parentReplica:AddCleanupTask(childReplica)
+		end
 	end)
 
 	-- Connect to replica destroyed

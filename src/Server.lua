@@ -30,7 +30,7 @@ local UPDATE_RATE: number = 0.25
 --[ Object References ]--
 
 local CreationRemote = Net:RemoteEvent("ReplicaCreated")
-local ChildRemote = Net:RemoteEvent("ReplicaChild")
+local ChildRemote = Net:RemoteEvent("ReplicaChildren")
 local DestroyRemote = Net:RemoteEvent("ReplicaDestroyed")
 local ListenerRemote = Net:RemoteEvent("ReplicaListeners")
 
@@ -55,8 +55,8 @@ function ServerReplica.new(params: ReplicaParams)
 	local self = setmetatable({}, ServerReplica)
 	self._trove = Trove.new()
 	self._queue = {}
-	self._childQueue = {}
 
+	self.ChildQueue = {}
 	self.Children = {}
 
 	-- Populate class with replica data from parameters
@@ -96,10 +96,39 @@ function ServerReplica.new(params: ReplicaParams)
 
 	-- Provide client with children
 	self._trove:Add(Timer.Simple(UPDATE_RATE, function()
-		ChildRemote:FireClient(self.ReplicaId, self._childQueue)
+		-- Only fire remote whenever there are children in the queue
+		if #self.ChildQueue > 0 then
+			ChildRemote:FireClient(self.ReplicaId, self.ChildQueue)
+
+			-- Insert children in queue into server queue
+			for _, child: string in self.ChildQueue do
+				table.insert(self.Children, child)
+			end
+		end
 	end))
 
 	return self
+end
+
+-- Sets parent of replica.
+--@param replica Replica
+function ServerReplica:SetParent(replica: Replica)
+	-- Prevent `nil` cases
+	if not replica then
+		return
+	end
+
+	-- Insert replica into child queue
+	local replicaId: string = self.ReplicaId
+	table.insert(replica.ChildQueue, replicaId)
+
+	-- Remove replica from parent children
+	self._trove:Add(function()
+		local index: number? = table.find(replica.Children, replicaId)
+		if index then
+			table.remove(replica.Children, index)
+		end
+	end)
 end
 
 -- Sets value from path.

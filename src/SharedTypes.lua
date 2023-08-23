@@ -17,7 +17,7 @@ export type Replica = {
 	Replication: { any },
 
 	SetParent: (self: Replica, replica: Replica) -> (),
-	DestroyFor: (self: Replica, player: Player) -> (),
+	DestroyFor: (self: Replica, Player) -> (),
 
 	SetValue: (self: Replica, path: string, value: any) -> (),
 	SetValues: (self: Replica, path: string, values: { [string]: any }) -> (),
@@ -25,7 +25,11 @@ export type Replica = {
 	ArraySet: (self: Replica, path: string, index: number, value: any) -> (),
 	ArrayRemove: (self: Replica, path: string, index: number) -> (),
 
+	ConnectOnServerEvent: (self: Replica, listener: (params: ReplicaParams, any) -> ()) -> (),
+	ConnectOnClientEvent: (self: Replica, listener: (params: ReplicaParams, any) -> ()) -> (),
+
 	ListenToChildAdded: (self: Replica, child: Replica) -> (),
+	ListenToRaw: (self: Replica, listener: (listenerType: string, path: { string }, any) -> ()) -> (),
 	ListenToChange: (self: Replica, path: string, listener: (newValue: any, oldValue: any) -> ()) -> (),
     ListenToNewkey: (self: Replica, path: string, listener: (value: any, newKey: string) -> ()) -> (),
 	ListenToArrayInsert: (self: Replica, path: string, listener: (index: number, value: any) -> ()) -> (),

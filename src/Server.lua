@@ -33,6 +33,7 @@ local CreationRemote = Net:RemoteEvent("ReplicaCreated")
 local ChildRemote = Net:RemoteEvent("ReplicaChildren")
 local DestroyRemote = Net:RemoteEvent("ReplicaDestroyed")
 local ListenerRemote = Net:RemoteEvent("ReplicaListeners")
+local MockRemote = Net:RemoteEvent("ReplicaMockRemote")
 
 --[ Variables ]--
 
@@ -54,6 +55,7 @@ ServerReplica.__index = ServerReplica
 function ServerReplica.new(params: ReplicaParams)
 	local self = setmetatable({}, ServerReplica)
 	self._trove = Trove.new()
+	self._params = params
 	self._queue = {}
 
 	self.ChildQueue = {}
@@ -151,7 +153,7 @@ function ServerReplica:SetValue(path: string, value: any)
 	local parentPointer, lastKey = ReplicaUtil.getParent(path, self.Data)
 	local stringKey: string = string.gsub(path, `.{lastKey}`, "")
 	local oldValue: any = parentPointer[lastKey]
-
+	print(parentPointer, lastKey)
 	-- Update data
 	if parentPointer and lastKey then
 		-- Fire new key listeners
@@ -160,6 +162,7 @@ function ServerReplica:SetValue(path: string, value: any)
 		end
 
 		parentPointer[lastKey] = value
+		print("Calling")
 		self:_fireListener("Change", path, value, oldValue)
 	end
 
@@ -254,10 +257,44 @@ function ServerReplica:ArrayRemove(path: string, index: number): any
 	return removedValue
 end
 
+-- Fires specified arguments to the specified client
+function ServerReplica:FireClient(player: Player, ...)
+	-- Fire remote
+	MockRemote:FireClient(player, self.ReplicaId, ...)
+end
+
+function ServerReplica:FireAllClients(...)
+	if not self.Replication or self.Replication == "All" then
+		MockRemote:FireAllClients(self.ReplicaId, ...)
+	else
+		-- Fire remote for players in replication
+		for _, player: Player in self.Replication do
+			MockRemote:FireClient(player, self.ReplicaId, ...)
+		end
+	end
+end
+
+-- Functions similarly to ``OnServerEvent``
+--@param listener function
+function ServerReplica:ConnectOnServerEvent(listener: (player: Player, params: ReplicaParams, any) -> ())
+	return self._trove:Add(Net:Connect("ReplicaMockRemote", function(player: Player, replicaId: string, ...: any)
+		-- Check if replica ID is the same
+		if replicaId == self.ReplicaId then
+			task.spawn(listener, player, self._params, ...)
+		end
+	end))
+end
+
 -- Listens for children being added to the replica.
 --@param listener PathListener The function to call when a child is added to the replica.
 function ServerReplica:ListenToChildAdded(listener: (child: Replica) -> ()): RBXScriptConnection
 	return self:_createListener("ChildAdded", "Root", listener)
+end
+
+-- Listens to all changes
+--@param listener function
+function ServerReplica:ListenToRaw(listener: (listenerType: string, path: { string }, any) -> ()): RBXScriptConnection
+	return self:_createListener("Raw", "Root", listener)
 end
 
 -- Listens to changes from `SetValue`.
@@ -319,6 +356,7 @@ end
 
 function ServerReplica:_fireListener(listenerType: string, path: string, ...)
 	-- Handle serverside listeners
+	print("Fired")
 	ReplicaUtil.fireListener(self.ReplicaId, listenerType, path, ...)
 
 	-- Replicate to client

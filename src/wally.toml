@@ -1,7 +1,7 @@
 [package]
 name = "luarook/replica"
-description = "A recreation of ReplicaService with optimization in mind."
-version = "0.1.4"
+description = "ReplicaService without the bloat and overcomplication."
+version = "0.1.5"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 

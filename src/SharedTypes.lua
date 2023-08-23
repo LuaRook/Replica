@@ -15,6 +15,9 @@ export type Replica = {
 	Tags: { any },
 	Replication: { any },
 
+	SetParent: (self: Replica, replica: Replica) -> (),
+	DestroyFor: (self: Replica, player: Player) -> (),
+
 	SetValue: (self: Replica, path: string, value: any) -> (),
 	SetValues: (self: Replica, path: string, values: { [string]: any }) -> (),
 	ArrayInsert: (self: Replica, path: string, value: any) -> (),

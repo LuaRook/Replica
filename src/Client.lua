@@ -30,6 +30,10 @@ local Replicas: { [string]: Replica } = {}
 
 --[ API ]--
 
+function ClientReplica.RequestData() ---@deprecated
+	warn(`This function has been deprecated! Please remove all references to it.\nTrace stack:\n\t{debug.traceback()}`)
+end
+
 -- Fires the specified callback when a replica of the specified classname is created.
 --@param className string The required classname of the created replica.
 --@param listener function The function that is called whenever a replica is created.

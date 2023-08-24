@@ -284,6 +284,11 @@ function ServerReplica:ConnectOnServerEvent(listener: (player: Player, any) -> (
 	return self._trove:Add(Net:Connect("ReplicaMockRemote", function(player: Player, replicaId: string, ...: any)
 		-- Check if replica ID is the same
 		if replicaId == self.ReplicaId then
+			-- If player isn't apart of replication, return
+			if self.Replication and self.Replication ~= "All" and not table.find(self.Replication, player) then
+				return
+			end
+
 			task.spawn(listener, player, ...)
 		end
 	end))
@@ -400,7 +405,7 @@ function ServerReplica:DestroyFor(...: Player)
 		-- Fire remote for player
 		self:Destroy()
 		DestroyRemote:FireClient(player, {
-			self.ReplicaId
+			self.ReplicaId,
 		})
 	end
 end

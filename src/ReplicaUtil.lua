@@ -37,7 +37,7 @@ end
 function ReplicaUtil.fireListener(replicaId: string, listenerType: string, path: string, ...)
 	-- Fire raw signal
 	if listenerType ~= "Raw" then
-		ReplicaUtil.fireListener(replicaId, "Raw", "Root", listenerType, stringToArray(path), ...)
+		ReplicaUtil.fireListener(replicaId, "Raw", "Root", listenerType, path, ...)
 	end
 
 	local replicaSignals = Listeners[replicaId]

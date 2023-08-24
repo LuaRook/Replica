@@ -25,8 +25,8 @@ export type Replica = {
 	ArraySet: (self: Replica, path: string, index: number, value: any) -> (),
 	ArrayRemove: (self: Replica, path: string, index: number) -> (),
 
-	ConnectOnServerEvent: (self: Replica, listener: (params: ReplicaParams, any) -> ()) -> (),
-	ConnectOnClientEvent: (self: Replica, listener: (params: ReplicaParams, any) -> ()) -> (),
+	ConnectOnServerEvent: (self: Replica, listener: () -> ()) -> (),
+	ConnectOnClientEvent: (self: Replica, listener: () -> ()) -> (),
 
 	ListenToChildAdded: (self: Replica, child: Replica) -> (),
 	ListenToRaw: (self: Replica, listener: (listenerType: string, path: { string }, any) -> ()) -> (),

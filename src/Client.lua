@@ -58,7 +58,6 @@ end
 function ClientReplica.new(params)
 	local self = setmetatable({}, ClientReplica)
 	self._trove = Trove.new()
-	self._params = params
 	self.ClassName = params.ClassName
 	self.Children = {}
 	self.ReplicaId = params.ReplicaId
@@ -96,7 +95,7 @@ function ClientReplica:ConnectOnClientEvent(listener: (params: ReplicaParams, an
 	return self._trove:Add(Net:Connect("ReplicaMockRemote", function(replicaId: string, ...: any)
 		-- Check if replica ID is the same
 		if replicaId == self.ReplicaId then
-			task.spawn(listener, self._params, ...)
+			task.spawn(listener, ...)
 		end
 	end))
 end

@@ -55,7 +55,6 @@ ServerReplica.__index = ServerReplica
 function ServerReplica.new(params: ReplicaParams)
 	local self = setmetatable({}, ServerReplica)
 	self._trove = Trove.new()
-	self._params = params
 	self._queue = {}
 
 	self.ChildQueue = {}
@@ -276,11 +275,11 @@ end
 
 -- Functions similarly to ``OnServerEvent``
 --@param listener function
-function ServerReplica:ConnectOnServerEvent(listener: (player: Player, params: ReplicaParams, any) -> ())
+function ServerReplica:ConnectOnServerEvent(listener: (player: Player, any) -> ())
 	return self._trove:Add(Net:Connect("ReplicaMockRemote", function(player: Player, replicaId: string, ...: any)
 		-- Check if replica ID is the same
 		if replicaId == self.ReplicaId then
-			task.spawn(listener, player, self._params, ...)
+			task.spawn(listener, player, ...)
 		end
 	end))
 end
